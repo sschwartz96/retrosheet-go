@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io/fs"
 	"os"
@@ -11,7 +12,9 @@ import (
 func main() {
 	fmt.Println("Starting retrosheet-go")
 
-	teamFile := ""
+	teams := []Team{}
+
+	teamFileName := ""
 	rosterFiles := []string{}
 	eventFiles := []string{}
 
@@ -31,14 +34,45 @@ func main() {
 			continue
 		}
 		if strings.Contains(entry, "TEAM") {
-			teamFile = entry
+			teamFileName = entry
 			continue
 		}
 	}
 
-	fmt.Println("teamFile =", teamFile)
+	fmt.Println("teamFile =", teamFileName)
 	fmt.Println("rosterFiles =", rosterFiles)
 	fmt.Println("eventFiles =", eventFiles)
+
+	// process team file
+	teamFile, err := os.Open(teamFileName)
+	if err != nil {
+		fmt.Println("error opening team file:", err)
+	}
+
+	scanner := bufio.NewScanner(teamFile)
+	for scanner.Scan() {
+		split := strings.Split(scanner.Text(), ",")
+		teams = append(teams, Team{
+			Code:     split[0],
+			League:   split[1],
+			Location: split[2],
+			Name:     split[3],
+		})
+	}
+	for _, team := range teams {
+		fmt.Println(team)
+	}
+}
+
+type Team struct {
+	Location string
+	Name     string
+	Code     string
+	League   string
+}
+
+func (t Team) String() string {
+	return fmt.Sprintf("%s %s %s %s", t.Code, t.League, t.Location, t.Name)
 }
 
 // ListFilesRecursively walks the directory tree rooted at 'root'
@@ -58,7 +92,7 @@ func ListFilesRecursively(root string, firstLevelOnly bool) ([]string, error) {
 			filePaths = append(filePaths, path)
 		}
 
-		// skip walking this directory
+		// skip walking nested directories
 		if d.IsDir() && firstLevelOnly && path != root {
 			return fs.SkipDir
 		}
